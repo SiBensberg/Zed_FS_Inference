@@ -1,0 +1,5 @@
+/cmake-build-debug/
+*.onnx
+*.svo
+*.idea
+/cmake-build-release/
