@@ -1,4 +1,4 @@
-# Formula Student Driverless inference with ZED and C++
+# Formula Student Driverless inference with ZED and ONNX
 
 ## Installation
 
