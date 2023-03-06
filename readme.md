@@ -2,7 +2,7 @@
 
 ## Installation
 
-### Install Opencv
+### Build Opencv
 
 -`sudo apt install -y g++ cmake make git libgtk2.0-dev pkg-config`
 -Download Source code from here https://github.com/opencv/opencv/releases

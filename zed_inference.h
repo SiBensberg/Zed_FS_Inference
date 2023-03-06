@@ -28,7 +28,6 @@ private:
     sl::Camera zed;
     ObjectDetector Detector{"/home/simon/CLionProjects/test/model/fsoco_efficientdet_d0.onnx"};
     const char* svo_path = "/home/simon/CLionProjects/test/misc/zed_raw_jetta.svo";
-    //const std::string svo_path1 = "/home/simon/CLionProjects/test/misc/zed_raw_jetta.svo";
 };
 
 

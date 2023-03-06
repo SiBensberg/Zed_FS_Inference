@@ -47,6 +47,9 @@ void ZedInference::grab_rgb_image() {
         // Inference image
         ZedInference::inference_rgb_image(image_ocv);
 
+        //debug
+        //sleep(5);
+
         // Display the left image from the cv::Mat object
         cv::imshow("Image", image_ocv);
         cv::waitKey(25);
@@ -93,6 +96,7 @@ int ZedInference::run(){
             return 0;
         }
         else {
+            camera_open = true;
             std::cout << "Successfully opened: " << this->svo_path << std::endl;
         }
     }

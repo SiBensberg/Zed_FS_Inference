@@ -3,7 +3,6 @@ project(ZED_inference)
 
 set(CMAKE_CXX_STANDARD 17)
 
-
 add_executable(ZED_inference main.cpp zed_inference.cpp zed_inference.h slmat_to_cvmat.cpp slmat_to_cvmat.h object_detector.h object_detector.cpp)
 
 find_package( OpenCV REQUIRED )
@@ -60,6 +59,5 @@ set(ONNXRUNTIME_LIB ${ONNXRUNTIME_ROOT_PATH}/onnxruntime/build/Linux/Release/lib
 
 target_include_directories(ZED_inference PRIVATE ${ONNXRUNTIME_INCLUDE_DIRS})
 target_link_libraries(ZED_inference PRIVATE ${ONNXRUNTIME_LIB} ${ZED_LIBRARIES} stdc++fs -lstdc++fs ${ZED_LIBS} ${OpenCV_LIBRARIES})
-
 
 #TARGET_LINK_LIBRARIES(${PROJECT_NAME} ${ZED_LIBS} ${OpenCV_LIBRARIES})

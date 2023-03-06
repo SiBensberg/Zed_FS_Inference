@@ -72,7 +72,7 @@ ObjectDetector::ObjectDetector(const std::string &modelPath) {
 
 }
 
-int ObjectDetector::Inference(cv::Mat imageBGR) {
+int ObjectDetector::Inference(const cv::Mat imageBGR) {
     std::cout << std::endl << "Starting Preprocessing:" << std::endl;
     // for time measuring
     const auto start = clock_time::now();
@@ -88,33 +88,52 @@ int ObjectDetector::Inference(cv::Mat imageBGR) {
 
     //Assign memory
     std::vector<Ort::Value> inputTensors;
-    Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu(
+    Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu( //maybe GPU allocator?
             OrtAllocatorType::OrtArenaAllocator,
             OrtMemType::OrtMemTypeDefault
             );
-    inputTensors.push_back(Ort::Value::CreateTensor<float>(
+    // creating float input tensor. But I think we need uint8
+    //inputTensors.push_back(Ort::Value::CreateTensor<float>(
+    //        memoryInfo,
+    //        inputTensorValues.data(),
+    //        inputTensorSize,
+    //        mInputDims.data(),
+    //        mInputDims.size()
+    //        ));
+
+    inputTensors.push_back(Ort::Value::CreateTensor(
             memoryInfo,
             inputTensorValues.data(),
             inputTensorSize,
             mInputDims.data(),
-            mInputDims.size()
-            ));
+            mInputDims.size(),
+            ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8
+    ));
 
     //Create output tensor
-    int outputTensorSize = 1;
+    size_t outputTensorSize = 1;
     for (const auto& e: mOutputDims){
-        inputTensorSize *= e;
+        outputTensorSize *= e;
     }
     std::vector<float> outputTensorValues(outputTensorSize);
+
     std::vector<Ort::Value> outputTensors;
     outputTensors.push_back(
+            //Ort::Value::CreateTensor<float>(
+            //    memoryInfo,
+            //    outputTensorValues.data(),
+            //    outputTensorSize,
+            //    mOutputDims.data(),
+            //    mOutputDims.size())
+            //    );
             Ort::Value::CreateTensor<float>(
-                memoryInfo,
-                outputTensorValues.data(),
-                outputTensorSize,
-                mOutputDims.data(),
-                4*mOutputDims.size())
-                );
+                    memoryInfo,
+                    outputTensorValues.data(),
+                    outputTensorSize,
+                    mOutputDims.data(),
+                    4 * mOutputDims.size() //*4 for Float32. https://github.com/triton-inference-server/server/issues/4478
+                    //ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT
+                    ));
 
     const sec preprocessing_time = clock_time::now() - start;
     std::cout << "The preprocessing takes " << preprocessing_time.count() << "s"
@@ -127,10 +146,14 @@ int ObjectDetector::Inference(cv::Mat imageBGR) {
     std::vector<const char*> inputNames{mInputName};
     std::vector<const char*> outputNames{mOutputName};
 
-    std::cout << std::endl << "Starting Inferencing:" << std::endl;
-    mSession->Run(Ort::RunOptions{nullptr}, inputNames.data(),
-                  inputTensors.data(), 1, outputNames.data(),
-                  outputTensors.data(), 1);
+    std::cout << "\nStarting Inferencing:" << std::endl;
+    mSession->Run(Ort::RunOptions{nullptr},
+                  inputNames.data(),
+                  inputTensors.data(),
+                  1,
+                  outputNames.data(),
+                  outputTensors.data(),
+                  1);
 
     const sec inference_time = clock_time::now() - start;
     std::cout << "The preprocessing takes " << inference_time.count() << "s"
@@ -146,10 +169,19 @@ void ObjectDetector::CreateTensorFromImage(
         const cv::Mat& img, std::vector<float>& inputTensorValues) {
     cv::Mat imageRGB, scaledImage, preprocessedImage;
 
+    auto type = img.type();
+
+    //std::string type="uint8";
+
     /******* Preprocessing *******/
     // Scale image pixels from [0 255] to [-1, 1]
     //img.convertTo(scaledImage, CV_32F, 2.0f / 255.0f, -1.0f);
-    img.convertTo(scaledImage, CV_8U, 2.0f / 255.0f, -1.0f);
+    if (type != 24){
+        img.convertTo(scaledImage, CV_8U, 2.0f / 255.0f, -1.0f);
+    }
+    else {
+        img.convertTo(scaledImage, CV_8U, 1.0f, 0.0f);
+    }
     // Convert HWC to CHW
     cv::dnn::blobFromImage(scaledImage, preprocessedImage);
 
