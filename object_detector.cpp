@@ -63,6 +63,7 @@ ObjectDetector::ObjectDetector(const std::string &modelPath) {
         std::cout << i << ' ';
     }
     std::cout << std::endl;
+    std::cout << "Output Type: " << outputType << std::endl;
     std::cout << "Output Nodes: " << numOutputNodes << std::endl;
     std::cout << "Output Dimension: ";
     for (int64_t i: mOutputDims){
@@ -85,6 +86,12 @@ int ObjectDetector::Inference(const cv::Mat imageBGR) {
 
     std::vector<float> inputTensorValues(inputTensorSize);
     CreateTensorFromImage(imageBGR, inputTensorValues);
+
+    //debug prints:
+    std::cout << "inputTensorValues.data: " << *inputTensorValues.data() << std::endl;
+    std::cout << "inputTensorSize: " << inputTensorSize << std::endl;
+    std::cout << "mInputDims.data: " << *mInputDims.data() << std::endl;
+    std::cout << "mInputDims.size: " << mInputDims.size() << std::endl;
 
     //Assign memory
     std::vector<Ort::Value> inputTensors;
@@ -118,6 +125,18 @@ int ObjectDetector::Inference(const cv::Mat imageBGR) {
     std::vector<float> outputTensorValues(outputTensorSize);
 
     std::vector<Ort::Value> outputTensors;
+
+    //debug prints:
+    std::cout << "outputTensorValues.data: " << *outputTensorValues.data() << std::endl;
+    std::cout << "outputTensorSize: " << outputTensorSize << std::endl;
+    std::cout << "mOutputDims.data: ";
+    for (int64_t i: mOutputDims){
+        std::cout << i << " ";
+    }
+    std::cout << std::endl;
+    // << *mOutputDims.data() << std::endl;
+    std::cout << "mOutputDims.size: " << 4 * mOutputDims.size() << std::endl;
+
     outputTensors.push_back(
             //Ort::Value::CreateTensor<float>(
             //    memoryInfo,
@@ -126,13 +145,13 @@ int ObjectDetector::Inference(const cv::Mat imageBGR) {
             //    mOutputDims.data(),
             //    mOutputDims.size())
             //    );
-            Ort::Value::CreateTensor<float>(
+            Ort::Value::CreateTensor(
                     memoryInfo,
                     outputTensorValues.data(),
-                    outputTensorSize,
+                    4 * outputTensorSize,
                     mOutputDims.data(),
-                    4 * mOutputDims.size() //*4 for Float32. https://github.com/triton-inference-server/server/issues/4478
-                    //ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT
+                    mOutputDims.size(), //*4 for Float32. https://github.com/triton-inference-server/server/issues/4478
+                    ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT
                     ));
 
     const sec preprocessing_time = clock_time::now() - start;

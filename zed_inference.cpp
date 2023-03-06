@@ -27,7 +27,7 @@
 
 ZedInference::ZedInference() {
     std::cout << "Created ZedInference Class" << std::endl;
-    running = false;
+    this->running = false;
 }
 
 void ZedInference::grab_rgb_image() {
@@ -48,7 +48,7 @@ void ZedInference::grab_rgb_image() {
         ZedInference::inference_rgb_image(image_ocv);
 
         //debug
-        //sleep(5);
+        sleep(10);
 
         // Display the left image from the cv::Mat object
         cv::imshow("Image", image_ocv);
