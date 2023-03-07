@@ -23,6 +23,7 @@ class ObjectDetector {
 public:
     ObjectDetector(const std::string& modelPath);
     int Inference(cv::Mat imageBGR);
+    bool hwc = true; // whether input to model is HWC or CHW
 private:
     // ORT Environment
     std::shared_ptr<Ort::Env> mEnv;
@@ -38,6 +39,8 @@ private:
 
     void CreateTensorFromImage(const cv::Mat& img,
                                std::vector<float>& inputTensorValues);
+
+    void CreateInferenceImage(Ort::Value *outputTensor, cv::Mat inputImage);
 };
 
 

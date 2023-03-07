@@ -12,10 +12,20 @@ ObjectDetector::ObjectDetector(const std::string &modelPath) {
     // make shared for creating new shared pointer
     mEnv = std::make_shared<Ort::Env>(OrtLoggingLevel::ORT_LOGGING_LEVEL_WARNING, instance_Name.c_str());
 
+    // print available providers
+    std::cout << "Avaiable providers: ";
+    for (std::string i : Ort::GetAvailableProviders()) {
+        std::cout << " " << i << " ";
+    };
+    std::cout << std::endl;
+
+    OrtCUDAProviderOptions cuda_opts = OrtCUDAProviderOptions();
+    cuda_opts.device_id = 0;
+
     // Ort Session
     Ort::SessionOptions sessionOptions;
     // Enable Cuda
-    sessionOptions.AppendExecutionProvider_CUDA(OrtCUDAProviderOptions{});
+    sessionOptions.AppendExecutionProvider_CUDA(cuda_opts);
     sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
     // Load model
     mSession = std::make_shared<Ort::Session>(*mEnv, modelPath.c_str(), sessionOptions);
@@ -43,7 +53,7 @@ ObjectDetector::ObjectDetector(const std::string &modelPath) {
     }
     if (variabel){
         std::cout << "Input size of exported ONNX model is variable. For this reason it has to be predefined." << std::endl << "Setting it to 512x512" << std::endl;
-        mInputDims = {1, 3, 512, 512};
+        mInputDims = {1, 512, 512, 3};
     }
 
 
@@ -84,14 +94,18 @@ int ObjectDetector::Inference(const cv::Mat imageBGR) {
         inputTensorSize *= e;
     }
 
+    // todo: wrong input shape. 3 512 512 to 512 512 3
     std::vector<float> inputTensorValues(inputTensorSize);
     CreateTensorFromImage(imageBGR, inputTensorValues);
 
+    // inputTensorValues is flattened array with chw format.
+    // inputTensorValues should be reordererd to hwc format
+
     //debug prints:
-    std::cout << "inputTensorValues.data: " << *inputTensorValues.data() << std::endl;
-    std::cout << "inputTensorSize: " << inputTensorSize << std::endl;
-    std::cout << "mInputDims.data: " << *mInputDims.data() << std::endl;
-    std::cout << "mInputDims.size: " << mInputDims.size() << std::endl;
+    std::cout << "  inputTensorValues.data: " << *inputTensorValues.data() << std::endl;
+    std::cout << "  inputTensorSize: " << inputTensorSize << std::endl;
+    std::cout << "  mInputDims.data: " << *mInputDims.data() << std::endl;
+    std::cout << "  mInputDims.size: " << mInputDims.size() << std::endl;
 
     //Assign memory
     std::vector<Ort::Value> inputTensors;
@@ -99,6 +113,7 @@ int ObjectDetector::Inference(const cv::Mat imageBGR) {
             OrtAllocatorType::OrtArenaAllocator,
             OrtMemType::OrtMemTypeDefault
             );
+
     // creating float input tensor. But I think we need uint8
     //inputTensors.push_back(Ort::Value::CreateTensor<float>(
     //        memoryInfo,
@@ -127,15 +142,15 @@ int ObjectDetector::Inference(const cv::Mat imageBGR) {
     std::vector<Ort::Value> outputTensors;
 
     //debug prints:
-    std::cout << "outputTensorValues.data: " << *outputTensorValues.data() << std::endl;
-    std::cout << "outputTensorSize: " << outputTensorSize << std::endl;
-    std::cout << "mOutputDims.data: ";
+    std::cout << "\n  outputTensorValues.data: " << *outputTensorValues.data() << std::endl;
+    std::cout << "  outputTensorSize: " << outputTensorSize << std::endl;
+    std::cout << "  mOutputDims.data: ";
     for (int64_t i: mOutputDims){
         std::cout << i << " ";
     }
     std::cout << std::endl;
     // << *mOutputDims.data() << std::endl;
-    std::cout << "mOutputDims.size: " << 4 * mOutputDims.size() << std::endl;
+    std::cout << "  mOutputDims.size: " << 4 * mOutputDims.size() << std::endl;
 
     outputTensors.push_back(
             //Ort::Value::CreateTensor<float>(
@@ -175,9 +190,11 @@ int ObjectDetector::Inference(const cv::Mat imageBGR) {
                   1);
 
     const sec inference_time = clock_time::now() - start;
-    std::cout << "The preprocessing takes " << inference_time.count() << "s"
+    std::cout << "The inference takes " << inference_time.count() << "s"
               << std::endl;
 
+    // debug: try to show image
+    this->CreateInferenceImage(&outputTensors.back(), imageBGR);
 
     auto after = std::chrono::system_clock::now();
 }
@@ -189,8 +206,8 @@ void ObjectDetector::CreateTensorFromImage(
     cv::Mat imageRGB, scaledImage, preprocessedImage;
 
     auto type = img.type();
-
-    //std::string type="uint8";
+    auto input_height = mInputDims.at(1);
+    auto input_width = mInputDims.at(2);
 
     /******* Preprocessing *******/
     // Scale image pixels from [0 255] to [-1, 1]
@@ -202,9 +219,62 @@ void ObjectDetector::CreateTensorFromImage(
         img.convertTo(scaledImage, CV_8U, 1.0f, 0.0f);
     }
     // Convert HWC to CHW
-    cv::dnn::blobFromImage(scaledImage, preprocessedImage);
+    if (!this->hwc){
+        cv::dnn::blobFromImage(scaledImage, preprocessedImage);
+    }
+    else {
+        //cv::COLOR_RGB2BGR todo: find out
+        //cv::COLOR_BGR2RGB
+        //cv::cvtColor(scaledImage, preprocessedImage, cv::COLOR_RGB2BGR);
+        //preprocessedImage = scaledImage;
+        //scaledImage.convertTo(preprocessedImage, cv::COLOR_RGBA2BGRA);
+        cv::resize(scaledImage,
+                   preprocessedImage,
+                   cv::Size(input_width,input_height),
+                   cv::INTER_LINEAR);
+    }
 
     // Assign the input image to the input tensor
     inputTensorValues.assign(preprocessedImage.begin<float>(),
                              preprocessedImage.end<float>());
+
+    //inputTensorValues.assign(preprocessedImage.begin<int>(),
+    //                         preprocessedImage.end<int>());
 }
+
+void ObjectDetector::CreateInferenceImage(
+        Ort::Value *outputTensor,
+        cv::Mat inputImage
+        ) {
+    // todo: add box data and original opencvmat
+    std::cout << "\nShowing image:" << std::endl;
+
+
+    const float *data = outputTensor->GetTensorData<float>();
+
+    auto shape = outputTensor->GetTensorTypeAndShapeInfo().GetShape();
+
+    // Shape should be 100 Boxes with 7 values:
+    // Box coordinates are 1:5
+    // class id's is 6
+    // scores is 5
+    std::cout << "  Tensor_shape: ";
+    for (long i : shape) {
+        std::cout << i << " ";
+    }
+    std::cout << std::endl;
+
+    float* floatarr = outputTensor->GetTensorMutableData<float>();
+
+    // todo: confidences seem to be pretty low. Somethings off maybe bgr<->rgb?
+    for(int i=0; i<shape[1]; i++){
+        int confidence_index = (i * 7) + 5;
+        float confidence = floatarr[confidence_index];
+        std::cout << "conf: " << confidence << std::endl;
+        // auto row = floatarr[i];
+    };
+
+
+
+}
+
