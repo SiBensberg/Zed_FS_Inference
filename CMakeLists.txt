@@ -3,6 +3,8 @@ project(ZED_inference)
 
 set(CMAKE_CXX_STANDARD 17)
 
+SET(CMAKE_BUILD_TYPE Debug)
+
 add_executable(ZED_inference main.cpp zed_inference.cpp zed_inference.h slmat_to_cvmat.cpp slmat_to_cvmat.h object_detector.h object_detector.cpp)
 
 find_package( OpenCV REQUIRED )

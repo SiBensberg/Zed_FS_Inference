@@ -94,8 +94,7 @@ int ObjectDetector::Inference(const cv::Mat imageBGR) {
         inputTensorSize *= e;
     }
 
-    // todo: wrong input shape. 3 512 512 to 512 512 3
-    std::vector<float> inputTensorValues(inputTensorSize);
+    std::vector<uint8_t> inputTensorValues(inputTensorSize);
     CreateTensorFromImage(imageBGR, inputTensorValues);
 
     // inputTensorValues is flattened array with chw format.
@@ -202,44 +201,65 @@ int ObjectDetector::Inference(const cv::Mat imageBGR) {
 
 // Create a tensor from the input image
 void ObjectDetector::CreateTensorFromImage(
-        const cv::Mat& img, std::vector<float>& inputTensorValues) {
-    cv::Mat imageRGB, scaledImage, preprocessedImage;
-
+        const cv::Mat& img, std::vector<uint8_t>& inputTensorValues) {
     auto type = img.type();
     auto input_height = mInputDims.at(1);
     auto input_width = mInputDims.at(2);
+    int nativeRows = img.rows;
+    int nativeCols = img.cols;
+
+    // Init new Images todo: can probably be simplified and made more memory efficient
+    // also todo: shift to gpu memory maybe helpful.
+    cv::Mat scaledImage(nativeRows, nativeCols, CV_8UC3);
+    cv::Mat preprocessedImage(input_height, input_width, CV_8UC3);
+
+    //cv::cuda::GpuMat
+    //img.convertTo(img, cv::COLOR_BGRA2RGBA);
+
+    std::vector<cv::Mat> rgbchannel;
+    cv::split(img, rgbchannel);
+    rgbchannel.erase(rgbchannel.begin() + 3);
+
+    cv::merge(rgbchannel, scaledImage);
+
+    std::cout << "img channels: " << img.channels() << std::endl;
+    std::cout << "scaled_img channels: " << scaledImage.channels() << std::endl;
+    std::cout << "prepro_img channels: " << preprocessedImage.channels() << std::endl;
 
     /******* Preprocessing *******/
     // Scale image pixels from [0 255] to [-1, 1]
     //img.convertTo(scaledImage, CV_32F, 2.0f / 255.0f, -1.0f);
     if (type != 24){
-        img.convertTo(scaledImage, CV_8U, 2.0f / 255.0f, -1.0f);
+        scaledImage.convertTo(scaledImage, CV_8U, 2.0f / 255.0f, -1.0f);
     }
     else {
-        img.convertTo(scaledImage, CV_8U, 1.0f, 0.0f);
+        scaledImage.convertTo(scaledImage, CV_8U, 1.0f, 0.0f);
     }
     // Convert HWC to CHW
     if (!this->hwc){
+        std::cout << "ATTENTION BLOB" << std::endl;
         cv::dnn::blobFromImage(scaledImage, preprocessedImage);
     }
     else {
         //cv::COLOR_RGB2BGR todo: find out
         //cv::COLOR_BGR2RGB
         //cv::cvtColor(scaledImage, preprocessedImage, cv::COLOR_RGB2BGR);
-        //preprocessedImage = scaledImage;
         //scaledImage.convertTo(preprocessedImage, cv::COLOR_RGBA2BGRA);
         cv::resize(scaledImage,
                    preprocessedImage,
                    cv::Size(input_width,input_height),
                    cv::INTER_LINEAR);
+        cv::cvtColor(preprocessedImage, preprocessedImage, cv::COLOR_RGB2BGR);
     }
 
-    // Assign the input image to the input tensor
-    inputTensorValues.assign(preprocessedImage.begin<float>(),
-                             preprocessedImage.end<float>());
+    std::cout << "prepro_img channels: " << preprocessedImage.channels() << std::endl;
 
-    //inputTensorValues.assign(preprocessedImage.begin<int>(),
-    //                         preprocessedImage.end<int>());
+    std::cout << "Tensorsize: " << inputTensorValues.size() << std::endl;
+    std::cout << "MAT size: " << preprocessedImage.size().height * preprocessedImage.size().width * preprocessedImage.channels() << std::endl;
+
+    // Assign MAT values to flat vector
+    // this is from here: https://stackoverflow.com/a/26685567
+    inputTensorValues.assign(preprocessedImage.data, preprocessedImage.data + (preprocessedImage.total() * preprocessedImage.channels()));
 }
 
 void ObjectDetector::CreateInferenceImage(
@@ -250,7 +270,7 @@ void ObjectDetector::CreateInferenceImage(
     std::cout << "\nShowing image:" << std::endl;
 
 
-    const float *data = outputTensor->GetTensorData<float>();
+    // const float *data = outputTensor->GetTensorData<float>();
 
     auto shape = outputTensor->GetTensorTypeAndShapeInfo().GetShape();
 
@@ -267,11 +287,30 @@ void ObjectDetector::CreateInferenceImage(
     float* floatarr = outputTensor->GetTensorMutableData<float>();
 
     // todo: confidences seem to be pretty low. Somethings off maybe bgr<->rgb?
-    for(int i=0; i<shape[1]; i++){
-        int confidence_index = (i * 7) + 5;
+    for(int row=0; row<shape[1]; row++){
+        // init indexes for easy access of flattened array.
+        int row_index = row * 7; // index of forst value for row. Because of flattened array.
+        int confidence_index = row_index + 5; // confidence value is on the 5th place of the row
+        int class_index = row_index + 6;
+        std::vector<float> box_coordinates;
+
+        // fills vector with coordinates for box. Should be ymin, xmin, ymax and xmax.
+        // They still need to be upscaled, because they are respective to input size.
+        for(int i=1; i<5; i++) {
+            box_coordinates.push_back(floatarr[row_index + i]);
+        }
+        int class_val = floatarr[class_index];
         float confidence = floatarr[confidence_index];
-        std::cout << "conf: " << confidence << std::endl;
-        // auto row = floatarr[i];
+
+        // debug: print detected boxes
+        std::cout << "Box" << row << ":";
+        std::cout << "  conf: " << confidence
+                << " class: " << class_val
+                << " box_coordinates: ";
+        for (float coord: box_coordinates) {
+            std::cout << coord << " ";
+        }
+        std::cout << std::endl;
     };
 
 

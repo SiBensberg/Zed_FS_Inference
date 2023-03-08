@@ -38,7 +38,7 @@ private:
     std::vector<int64_t> mOutputDims;
 
     void CreateTensorFromImage(const cv::Mat& img,
-                               std::vector<float>& inputTensorValues);
+                               std::vector<uint8_t>& inputTensorValues);
 
     void CreateInferenceImage(Ort::Value *outputTensor, cv::Mat inputImage);
 };
