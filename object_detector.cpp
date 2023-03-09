@@ -31,7 +31,7 @@ ObjectDetector::ObjectDetector(const std::string &modelPath) {
     mSession = std::make_shared<Ort::Session>(*mEnv, modelPath.c_str(), sessionOptions);
 
     // Allocator
-    Ort::AllocatorWithDefaultOptions allocator;
+    //Ort::AllocatorWithDefaultOptions allocator;
 
     // Extract input info:
     size_t numInputNodes = mSession->GetInputCount();
@@ -108,10 +108,13 @@ int ObjectDetector::Inference(const cv::Mat imageBGR) {
 
     //Assign memory
     std::vector<Ort::Value> inputTensors;
+
+    // Memory
     Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu( //maybe GPU allocator?
             OrtAllocatorType::OrtArenaAllocator,
             OrtMemType::OrtMemTypeDefault
-            );
+    );
+
 
     // creating float input tensor. But I think we need uint8
     //inputTensors.push_back(Ort::Value::CreateTensor<float>(
@@ -195,7 +198,17 @@ int ObjectDetector::Inference(const cv::Mat imageBGR) {
     // debug: try to show image
     this->CreateInferenceImage(&outputTensors.back(), imageBGR);
 
-    auto after = std::chrono::system_clock::now();
+    // Close input and output tensors:
+    inputTensors.back().release();
+    outputTensors.back().release();
+
+    //Ort::OrtRelease(inputTensors.back());
+    //Ort::OrtRelease(outputTensors.back());
+    //Ort::OrtRelease(memoryInfo);
+
+    const sec after = clock_time::now() - start;
+
+    std::cout << "Image Precessing and Inference taking a overall: " << after.count() << "s" << std::endl;
 }
 
 
@@ -207,6 +220,8 @@ void ObjectDetector::CreateTensorFromImage(
     auto input_width = mInputDims.at(2);
     int nativeRows = img.rows;
     int nativeCols = img.cols;
+
+    this->cameraInputDims = {nativeRows, nativeCols};
 
     // Init new Images todo: can probably be simplified and made more memory efficient
     // also todo: shift to gpu memory maybe helpful.
@@ -257,6 +272,8 @@ void ObjectDetector::CreateTensorFromImage(
     std::cout << "Tensorsize: " << inputTensorValues.size() << std::endl;
     std::cout << "MAT size: " << preprocessedImage.size().height * preprocessedImage.size().width * preprocessedImage.channels() << std::endl;
 
+
+
     // Assign MAT values to flat vector
     // this is from here: https://stackoverflow.com/a/26685567
     inputTensorValues.assign(preprocessedImage.data, preprocessedImage.data + (preprocessedImage.total() * preprocessedImage.channels()));
@@ -268,9 +285,9 @@ void ObjectDetector::CreateInferenceImage(
         ) {
     // todo: add box data and original opencvmat
     std::cout << "\nShowing image:" << std::endl;
-
-
-    // const float *data = outputTensor->GetTensorData<float>();
+    // Calculate Factors for later upscaling of boxes
+    float width_factor = cameraInputDims[1] / mInputDims.at(2);
+    float height_factor = cameraInputDims[0] / mInputDims.at(1);
 
     auto shape = outputTensor->GetTensorTypeAndShapeInfo().GetShape();
 
@@ -287,6 +304,7 @@ void ObjectDetector::CreateInferenceImage(
     float* floatarr = outputTensor->GetTensorMutableData<float>();
 
     // todo: confidences seem to be pretty low. Somethings off maybe bgr<->rgb?
+    // for every of the 100 boxes:
     for(int row=0; row<shape[1]; row++){
         // init indexes for easy access of flattened array.
         int row_index = row * 7; // index of forst value for row. Because of flattened array.
@@ -299,6 +317,12 @@ void ObjectDetector::CreateInferenceImage(
         for(int i=1; i<5; i++) {
             box_coordinates.push_back(floatarr[row_index + i]);
         }
+        // Upscale boxes
+        box_coordinates[0] *= height_factor;
+        box_coordinates[1] *= width_factor;
+        box_coordinates[2] *= height_factor;
+        box_coordinates[3] *= width_factor;
+
         int class_val = floatarr[class_index];
         float confidence = floatarr[confidence_index];
 

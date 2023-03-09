@@ -30,12 +30,15 @@ private:
     // Session
     std::shared_ptr<Ort::Session> mSession;
 
+
     // Inputs
     char* mInputName;
-    std::vector<int64_t> mInputDims;
+    std::vector<int64_t> mInputDims; // b x h x w x c
     // Outputs
     char* mOutputName;
-    std::vector<int64_t> mOutputDims;
+    std::vector<int64_t> mOutputDims; // b x h x w x c
+    std::vector<int64_t> cameraInputDims; // h x w
+
 
     void CreateTensorFromImage(const cv::Mat& img,
                                std::vector<uint8_t>& inputTensorValues);
