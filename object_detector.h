@@ -22,7 +22,7 @@ using sec = std::chrono::duration<double>;
 class ObjectDetector {
 public:
     ObjectDetector(const std::string& modelPath);
-    int Inference(cv::Mat imageBGR);
+    int Inference(const cv::Mat& imageBGR);
     bool hwc = true; // whether input to model is HWC or CHW
 private:
     // ORT Environment

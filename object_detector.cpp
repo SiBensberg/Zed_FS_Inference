@@ -3,6 +3,12 @@
 //
 #include "object_detector.h"
 
+// Colors for class ID 0,1,2,3 respective:
+const cv::Scalar BLUE = {180, 128, 0};
+const cv::Scalar YELLOW = {77, 220, 255};
+const cv::Scalar ORANGE = {0, 110, 250};
+const cv::Scalar BIGORANGE = {60, 30, 190};
+const std::vector<cv::Scalar> COLORS = {BLUE, YELLOW, ORANGE, BIGORANGE};
 
 
 ObjectDetector::ObjectDetector(const std::string &modelPath) {
@@ -83,7 +89,7 @@ ObjectDetector::ObjectDetector(const std::string &modelPath) {
 
 }
 
-int ObjectDetector::Inference(const cv::Mat imageBGR) {
+int ObjectDetector::Inference(const cv::Mat& imageBGR) {
     std::cout << std::endl << "Starting Preprocessing:" << std::endl;
     // for time measuring
     const auto start = clock_time::now();
@@ -110,10 +116,15 @@ int ObjectDetector::Inference(const cv::Mat imageBGR) {
     std::vector<Ort::Value> inputTensors;
 
     // Memory
-    Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu( //maybe GPU allocator?
-            OrtAllocatorType::OrtArenaAllocator,
-            OrtMemType::OrtMemTypeDefault
-    );
+    // Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu( //maybe GPU allocator?
+    //         //OrtAllocatorType::OrtArenaAllocator,
+    //         OrtAllocatorType::OrtDeviceAllocator,
+    //         OrtMemType::OrtMemTypeDefault
+    // );
+
+    //Ort::MemoryInfo memoryInfo("Cuda", OrtDeviceAllocator, 0, OrtMemTypeDefault);
+    auto memoryInfo = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+    //Ort::Allocator cuda_allocator(cuda_mem_info);
 
 
     // creating float input tensor. But I think we need uint8
@@ -204,7 +215,7 @@ int ObjectDetector::Inference(const cv::Mat imageBGR) {
 
     //Ort::OrtRelease(inputTensors.back());
     //Ort::OrtRelease(outputTensors.back());
-    //Ort::OrtRelease(memoryInfo);
+    Ort::OrtRelease(memoryInfo);
 
     const sec after = clock_time::now() - start;
 
@@ -285,9 +296,10 @@ void ObjectDetector::CreateInferenceImage(
         ) {
     // todo: add box data and original opencvmat
     std::cout << "\nShowing image:" << std::endl;
-    // Calculate Factors for later upscaling of boxes
-    float width_factor = cameraInputDims[1] / mInputDims.at(2);
-    float height_factor = cameraInputDims[0] / mInputDims.at(1);
+    // Calculate Factors for later upscaling of boxes with very sexy casts
+    auto width_factor = (float) cameraInputDims[1] / (float)  mInputDims.at(2);
+    auto height_factor = (float) cameraInputDims[0] / (float) mInputDims.at(1);
+    bool visualize = true;
 
     auto shape = outputTensor->GetTensorTypeAndShapeInfo().GetShape();
 
@@ -301,7 +313,7 @@ void ObjectDetector::CreateInferenceImage(
     }
     std::cout << std::endl;
 
-    float* floatarr = outputTensor->GetTensorMutableData<float>();
+    auto* floatarr = outputTensor->GetTensorMutableData<float>();
 
     // todo: confidences seem to be pretty low. Somethings off maybe bgr<->rgb?
     // for every of the 100 boxes:
@@ -310,7 +322,7 @@ void ObjectDetector::CreateInferenceImage(
         int row_index = row * 7; // index of forst value for row. Because of flattened array.
         int confidence_index = row_index + 5; // confidence value is on the 5th place of the row
         int class_index = row_index + 6;
-        std::vector<float> box_coordinates;
+        std::vector<int32_t> box_coordinates;
 
         // fills vector with coordinates for box. Should be ymin, xmin, ymax and xmax.
         // They still need to be upscaled, because they are respective to input size.
@@ -323,19 +335,29 @@ void ObjectDetector::CreateInferenceImage(
         box_coordinates[2] *= height_factor;
         box_coordinates[3] *= width_factor;
 
-        int class_val = floatarr[class_index];
+        int class_id = floatarr[class_index];
         float confidence = floatarr[confidence_index];
 
         // debug: print detected boxes
         std::cout << "Box" << row << ":";
         std::cout << "  conf: " << confidence
-                << " class: " << class_val
+                << " class: " << class_id
                 << " box_coordinates: ";
         for (float coord: box_coordinates) {
             std::cout << coord << " ";
         }
         std::cout << std::endl;
+
+        cv::Point min = cv::Point(box_coordinates[1], box_coordinates[0]); // ymin and xmin
+        cv::Point max = cv::Point (box_coordinates[3],  box_coordinates[2]); //ymax and xmax
+
+        // visualize: //todo: maybe visualisation flag? or visualisation function
+        if (visualize && confidence >= 0.09) {
+            cv::rectangle(inputImage, min, max, COLORS[class_id - 1]); // -1 because there is a background id 0
+        }
     };
+    cv::imshow("Image", inputImage);
+    cv::waitKey();
 
 
 
