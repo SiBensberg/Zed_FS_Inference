@@ -22,14 +22,15 @@ using sec = std::chrono::duration<double>;
 class ObjectDetector {
 public:
     ObjectDetector(const std::string& modelPath);
-    int Inference(const cv::Mat& imageBGR);
+    std::vector<std::vector<float>> Inference(const cv::Mat& imageBGR);
     bool hwc = true; // whether input to model is HWC or CHW
 private:
     // ORT Environment
-    std::shared_ptr<Ort::Env> mEnv;
+    //std::shared_ptr<Ort::Env> mEnv;
+    Ort::Env mEnv;
     // Session
-    std::shared_ptr<Ort::Session> mSession;
-
+    //std::shared_ptr<Ort::Session> mSession;
+    Ort::Session mSession = Ort::Session(nullptr);
 
     // Inputs
     char* mInputName;
@@ -39,11 +40,12 @@ private:
     std::vector<int64_t> mOutputDims; // b x h x w x c
     std::vector<int64_t> cameraInputDims; // h x w
 
+    Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu(OrtAllocatorType::OrtArenaAllocator, OrtMemType::OrtMemTypeDefault);
 
     void CreateTensorFromImage(const cv::Mat& img,
                                std::vector<uint8_t>& inputTensorValues);
 
-    void CreateInferenceImage(Ort::Value *outputTensor, cv::Mat inputImage);
+    std::vector<std::vector<float>> CreateInferenceImage(Ort::Value *outputTensor);
 };
 
 
