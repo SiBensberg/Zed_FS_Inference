@@ -30,8 +30,8 @@ ZedInference::ZedInference() {
     this->running = false;
 
     // Set configuration parameters
-    init_params.depth_mode = sl::DEPTH_MODE::QUALITY; // Use ULTRA depth mode
-    init_params.coordinate_units = sl::UNIT::MILLIMETER; // Use millimeter units (for depth measurements)
+    init_params.depth_mode = sl::DEPTH_MODE::ULTRA; // Use ULTRA depth mode
+    init_params.coordinate_units = sl::UNIT::METER; // Use millimeter units (for depth measurements)
 }
 
 void ZedInference::grab_rgb_image() {
@@ -140,7 +140,7 @@ std::vector<std::vector<float>> ZedInference::calculateDepth(
             // take the lowest point in the mid of the bbox
             auto xmid = (box[3] + (box[5] - box[3]) / 2);
             i = (int) xmid;
-            j = (int) box[2]; // simply bottom of box
+            j = (int) box[4]; // simply bottom of box
 
             // Get the 3D point cloud values for pixel (i,j)
             sl::float4 point3D;
@@ -171,7 +171,14 @@ std::vector<std::vector<float>> ZedInference::inference_rgb_image(cv::Mat rgb_im
 }
 
 void ZedInference::visualizeDetections(const cv::Mat& inputImage, std::vector<std::vector<float>> bboxes, std::vector<std::vector<float>> distances) {
+    int boxIndex = 0;
+
     for(std::vector<float> box: bboxes) {
+        // Get depth data from distances:
+        std::vector<float> boxDistance = distances[boxIndex];
+        boxIndex += 1;
+
+        // Get box coordinates
         std::vector<int> coordinates;
         for (int i=2; i < box.size(); ++i) {
             coordinates.push_back((int) box[i]);
@@ -185,13 +192,13 @@ void ZedInference::visualizeDetections(const cv::Mat& inputImage, std::vector<st
         cv::rectangle(inputImage, min, max, this->COLORS[class_id - 1], 1.5); // -1 because there is a background id 0
 
         // print coordinates next to boxes:
-        float x = box[2];
-        float y = box[3];
-        float z = box[4];
+        float x = boxDistance[2];
+        float y = boxDistance[3];
+        float z = boxDistance[4];
 
-        std::string xText = "x: " + std::to_string((int)x) + "mm";
-        std::string yText = "y: " + std::to_string((int)y) + "mm";
-        std::string zText = "z: " + std::to_string((int)z) + "mm";
+        std::string xText = "x: " + std::to_string(x) + "m";
+        std::string yText = "y: " + std::to_string(y) + "m";
+        std::string zText = "z: " + std::to_string(z) + "m";
         std::string confText = std::to_string(confidence);
 
         float fontScale = 0.5;
