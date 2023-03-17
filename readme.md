@@ -4,14 +4,17 @@
 
 ### Build Opencv
 
--`sudo apt install -y g++ cmake make git libgtk2.0-dev pkg-config`
--Download Source code from here https://github.com/opencv/opencv/releases
--`mkdir -p build && cd build`
--`cmake ../opencv`
--`make -j16`
--`sudo make install`
+- `sudo apt install -y g++ cmake make git libgtk2.0-dev pkg-config`
+- Download source code from here https://github.com/opencv/opencv/releases
+- `mkdir -p build && cd build`
+- `cmake ../opencv`
+- `make -j16`
+- `sudo make install`
 
 ### Install ZED SDK
+```angular2html
+https://www.stereolabs.com/developers/release/
+```
 
 ### Install CUDA & CUDNN
 - https://developer.nvidia.com/cuda-toolkit

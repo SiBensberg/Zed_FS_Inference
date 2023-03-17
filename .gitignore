@@ -2,3 +2,4 @@
 *.onnx
 *.svo
 *.idea
+/cmake-build-release/
