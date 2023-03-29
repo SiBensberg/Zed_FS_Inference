@@ -12,18 +12,18 @@ const std::vector<cv::Scalar> COLORS = {BLUE, YELLOW, ORANGE, BIGORANGE};
 
 
 ObjectDetector::ObjectDetector(const std::string &modelPath) {
-    // std::cout<< "Initiating ObjectDetector: " << std::endl;
+    std::cout<< "Initiating ObjectDetector: " << std::endl;
     // Create Environment:
     std::string instance_Name{"Object Detector"};
     // make shared for creating new shared pointer
     mEnv = Ort::Env(OrtLoggingLevel::ORT_LOGGING_LEVEL_WARNING, instance_Name.c_str());
 
     // print available providers
-    // std::cout<< "Avaiable providers: ";
+    std::cout<< "Avaiable providers: ";
     for (std::string i : Ort::GetAvailableProviders()) {
-        // std::cout<< " " << i << " ";
+        std::cout<< " " << i << " ";
     };
-    // std::cout<< std::endl;
+    std::cout<< std::endl;
 
     OrtCUDAProviderOptions cuda_opts = OrtCUDAProviderOptions();
     cuda_opts.device_id = 0;
@@ -37,14 +37,13 @@ ObjectDetector::ObjectDetector(const std::string &modelPath) {
     Ort::OrtRelease(mSession);
     mSession = Ort::Session(mEnv, modelPath.c_str(), sessionOptions);
 
-
     // Allocator
     //Ort::AllocatorWithDefaultOptions allocator;
 
     // Extract input info:
     size_t numInputNodes = mSession.GetInputCount();
     //mInputName = mSession->GetInputName(0, allocator);
-    mInputName = "image_arrays:0";
+    mInputName = "image_arrays:0"; //todo: initialize this more general or with constructor parameter
 
     // Input type:
     Ort::TypeInfo inputTypeInfo = mSession.GetInputTypeInfo(0);
@@ -74,20 +73,20 @@ ObjectDetector::ObjectDetector(const std::string &modelPath) {
     ONNXTensorElementDataType outputType = outputTensorInfo.GetElementType();
     mOutputDims = outputTensorInfo.GetShape();
 
-    // std::cout<< "Input Type: " << inputType << std::endl;
-    // std::cout<< "Input Nodes: " << numInputNodes << std::endl;
-    // std::cout<< "Input Dimension: ";
+    std::cout<< "Input Type: " << inputType << std::endl;
+    std::cout<< "Input Nodes: " << numInputNodes << std::endl;
+    std::cout<< "Input Dimension: ";
     for (int64_t i: mInputDims){
-        // std::cout<< i << ' ';
+        std::cout<< i << ' ';
     }
-    // std::cout<< std::endl;
-    // std::cout<< "Output Type: " << outputType << std::endl;
-    // std::cout<< "Output Nodes: " << numOutputNodes << std::endl;
-    // std::cout<< "Output Dimension: ";
+    std::cout<< std::endl;
+    std::cout<< "Output Type: " << outputType << std::endl;
+    std::cout<< "Output Nodes: " << numOutputNodes << std::endl;
+    std::cout<< "Output Dimension: ";
     for (int64_t i: mOutputDims){
-        // std::cout<< i << ' ';
+        std::cout<< i << ' ';
     }
-    // std::cout<< std::endl;
+    std::cout<< std::endl;
 
 }
 
@@ -201,14 +200,6 @@ std::vector<std::vector<float>> ObjectDetector::Inference(const cv::Mat& imageBG
     // debug: try to show image
     std::vector<std::vector<float>> outputBoxes = this->CreateInferenceImage(&outputTensors.back());
 
-    // Close input and output tensors:
-    //inputTensors.back().release();
-    //outputTensors.back().release();
-
-    //Ort::OrtRelease(inputTensors.back());
-    //Ort::OrtRelease(outputTensors.back());
-    //Ort::OrtRelease(memoryInfo);
-
     const sec after = clock_time::now() - start;
 
     std::cout<< "Image Precessing and Inference taking a overall: " << after.count() << "s" << std::endl;
@@ -233,18 +224,11 @@ void ObjectDetector::CreateTensorFromImage(
     cv::Mat scaledImage(nativeRows, nativeCols, CV_8UC3);
     cv::Mat preprocessedImage(input_height, input_width, CV_8UC3);
 
-    //cv::cuda::GpuMat
-    //img.convertTo(img, cv::COLOR_BGRA2RGBA);
-
     std::vector<cv::Mat> rgbchannel;
     cv::split(img, rgbchannel);
     rgbchannel.erase(rgbchannel.begin() + 3);
 
     cv::merge(rgbchannel, scaledImage);
-
-    // std::cout<< "img channels: " << img.channels() << std::endl;
-    // std::cout<< "scaled_img channels: " << scaledImage.channels() << std::endl;
-    // std::cout<< "prepro_img channels: " << preprocessedImage.channels() << std::endl;
 
     /******* Preprocessing *******/
     // Scale image pixels from [0 255] to [-1, 1]
@@ -256,28 +240,19 @@ void ObjectDetector::CreateTensorFromImage(
         scaledImage.convertTo(scaledImage, CV_8U, 1.0f, 0.0f);
     }
     // Convert HWC to CHW
+    // Tensorflow models do mostly need input image in NHWC.
+    // PyTorch usually needs NCHW.
     if (!this->hwc){
         // std::cout<< "ATTENTION BLOB" << std::endl;
         cv::dnn::blobFromImage(scaledImage, preprocessedImage);
     }
     else {
-        //cv::COLOR_RGB2BGR todo: find out
-        //cv::COLOR_BGR2RGB
-        //cv::cvtColor(scaledImage, preprocessedImage, cv::COLOR_RGB2BGR);
-        //scaledImage.convertTo(preprocessedImage, cv::COLOR_RGBA2BGRA);
         cv::resize(scaledImage,
                    preprocessedImage,
                    cv::Size(input_width,input_height),
                    cv::INTER_LINEAR);
         cv::cvtColor(preprocessedImage, preprocessedImage, cv::COLOR_RGB2BGR);
     }
-
-    // std::cout<< "prepro_img channels: " << preprocessedImage.channels() << std::endl;
-
-    // std::cout<< "Tensorsize: " << inputTensorValues.size() << std::endl;
-    // std::cout<< "MAT size: " << preprocessedImage.size().height * preprocessedImage.size().width * preprocessedImage.channels() << std::endl;
-
-
 
     // Assign MAT values to flat vector
     // this is from here: https://stackoverflow.com/a/26685567

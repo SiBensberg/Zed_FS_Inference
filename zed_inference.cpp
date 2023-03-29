@@ -47,7 +47,7 @@ void ZedInference::grab_rgb_image() {
     std::vector<std::vector<float>> distances;
 
     if (zed.grab() == sl::ERROR_CODE::SUCCESS) {
-        std::cout << "grab image" << std::endl;
+        // std::cout << "grab image" << std::endl;
         // Retrieve the left image in sl::Mat
         // The cv::Mat is automatically updated
         zed.retrieveImage(image_zed, sl::VIEW::LEFT);
