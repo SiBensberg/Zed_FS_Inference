@@ -11,7 +11,7 @@
 //#include <opencv2/cvconfig.h>
 
 
-
+// todo: integrate to object_detector
 
 int getOCVtype(sl::MAT_TYPE type) {
     int cv_type = -1;

@@ -25,7 +25,7 @@
 
 
 
-ZedInference::ZedInference() {
+ZedInference::ZedInference(): Detector("/home/simon/LionsRacing_workspace/Zed_FS_Inference/model/saved_model.onnx") {
     std::cout << "Created ZedInference Class" << std::endl;
     this->running = false;
 
@@ -34,8 +34,7 @@ ZedInference::ZedInference() {
     init_params.coordinate_units = sl::UNIT::METER; // Use millimeter units (for depth measurements)
 }
 
-void ZedInference::grab_rgb_image() {
-
+void ZedInference::grabRgbImage() {
     sl::Resolution image_size = zed.getCameraInformation().camera_resolution;
 
     sl::Mat image_zed(image_size.width, image_size.height, sl::MAT_TYPE::U8_C4);
@@ -51,10 +50,10 @@ void ZedInference::grab_rgb_image() {
         // Retrieve the left image in sl::Mat
         // The cv::Mat is automatically updated
         zed.retrieveImage(image_zed, sl::VIEW::LEFT);
-        zed.retrieveMeasure(point_cloud, sl::MEASURE::XYZRGBA); // Retrieve depth
+        zed.retrieveMeasure(point_cloud, sl::MEASURE::XYZRGBA); // Retrieve pointcloud
 
-        // Inference image
-        bboxes = ZedInference::inference_rgb_image(image_ocv);
+        // inference image
+        bboxes = ZedInference::inferenceRgbImage(image_ocv);
 
         // Calculate Depth:
         distances = ZedInference::calculateDepth(bboxes, point_cloud);
@@ -62,10 +61,8 @@ void ZedInference::grab_rgb_image() {
         if (visualize) {
             ZedInference::visualizeDetections(image_ocv, bboxes, distances);
         }
+        // publish distances here
 
-        // Display the left image from the cv::Mat object
-        //cv::imshow("Image", image_ocv);
-        //cv::waitKey(1);
     } else {
         std::cout << "Could not grab image.\nWaiting for 5 seconds" << std::endl;
         sleep(5);
@@ -99,7 +96,7 @@ int ZedInference::run(){
     // If Camera could not be opened try with svo
     if (camera_open == false){
         std::cout << "\nOpening SVO..." << std::endl;
-        sl::String input_svo_path(this->svo_path);
+        sl::String input_svo_path(this->svo_path.c_str());
         init_params.input.setFromSVOFile(input_svo_path);
         sl::ERROR_CODE err = zed.open(init_params);
 
@@ -120,21 +117,20 @@ int ZedInference::run(){
         std::cout << "\nRun camera: " << std::endl;
     }
     while (running && camera_open){
-        ZedInference::grab_rgb_image();
+        ZedInference::grabRgbImage();
     }
 
 }
 
-std::vector<std::vector<float>> ZedInference::calculateDepth(
-                                                                const std::vector<std::vector<float>>& bboxes,
-                                                                sl::Mat& point_cloud) {
+std::vector<std::vector<float>> ZedInference::calculateDepth(const std::vector<std::vector<float>>& bboxes,
+                                                             const sl::Mat &point_cloud) {
     // Init vector that needs to be filled and is later returned. Vector with vectors for every detected object in it.
     std::vector<std::vector<float>> coneDistances;
 
     // Extract depth from pointcloud with given box coordinates
     // Check if boxes are not empty:
-    if (!bboxes.empty()) {
-        for (auto box: bboxes) {
+    if (not bboxes.empty()) {
+        for (const auto &box: bboxes) {
             int i, j;
 
             // take the lowest point in the mid of the bbox
@@ -145,17 +141,10 @@ std::vector<std::vector<float>> ZedInference::calculateDepth(
             // Get the 3D point cloud values for pixel (i,j)
             sl::float4 point3D;
             point_cloud.getValue(i,j,&point3D);
-            float x = point3D.x;
-            float y = point3D.y;
-            float z = point3D.z;
             //float color = point3D.w;
 
             // fill box class, confidence, x, y, z
-            std::vector<float> boxDistance{box[0], box[1], x, y, z};
-            coneDistances.push_back(boxDistance);
-
-            // debug:
-            //std::cout << "x: " << x << " y: " << y << " z: " << z << std::endl;
+            coneDistances.push_back({box[0], box[1], point3D.x, point3D.y, point3D.z});
 
         }
     }
@@ -163,9 +152,9 @@ std::vector<std::vector<float>> ZedInference::calculateDepth(
     return coneDistances;
 }
 
-std::vector<std::vector<float>> ZedInference::inference_rgb_image(cv::Mat rgb_image) {
+std::vector<std::vector<float>> ZedInference::inferenceRgbImage(const cv::Mat &rgb_image) {
     std::vector<std::vector<float>> Boxes;
-    Boxes = ZedInference::Detector.Inference(rgb_image);
+    Boxes = ZedInference::Detector.inference(rgb_image);
 
     return Boxes;
 }
