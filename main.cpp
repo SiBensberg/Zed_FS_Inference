@@ -9,7 +9,7 @@ int main() {
 
     zed_inf.run();
 
-    //zed_inf.grab_rgb_image();
+    //zed_inf.grabRgbImage();
 
 
 

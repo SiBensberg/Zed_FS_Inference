@@ -21,31 +21,32 @@ using sec = std::chrono::duration<double>;
 
 class ObjectDetector {
 public:
-    ObjectDetector(const std::string& modelPath);
-    std::vector<std::vector<float>> Inference(const cv::Mat& imageBGR);
+    explicit ObjectDetector(const std::string& modelPath);
+    std::vector<std::vector<float>> inference(const cv::Mat &imageBGR) const;
     bool hwc = true; // whether input to model is HWC or CHW
 private:
     // ORT Environment
-    //std::shared_ptr<Ort::Env> mEnv;
     Ort::Env mEnv;
     // Session
-    //std::shared_ptr<Ort::Session> mSession;
-    Ort::Session mSession = Ort::Session(nullptr);
+    mutable Ort::Session mSession = Ort::Session(nullptr);
+    // Memory Info
+    Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu(OrtAllocatorType::OrtArenaAllocator, OrtMemType::OrtMemTypeDefault);
 
     // Inputs
     char* mInputName;
     std::vector<int64_t> mInputDims; // b x h x w x c
+    static inline std::vector<int64_t> mDefaultInputDims = {1, 512, 512, 3};
     // Outputs
     char* mOutputName;
     std::vector<int64_t> mOutputDims; // b x h x w x c
-    std::vector<int64_t> cameraInputDims; // h x w
 
-    Ort::MemoryInfo memoryInfo = Ort::MemoryInfo::CreateCpu(OrtAllocatorType::OrtArenaAllocator, OrtMemType::OrtMemTypeDefault);
+    // Camera input
+    mutable std::vector<int64_t> cameraInputDims; // h x w
 
-    void CreateTensorFromImage(const cv::Mat& img,
-                               std::vector<uint8_t>& inputTensorValues);
+    void createTensorFromImage(const cv::Mat& img,
+                               std::vector<uint8_t>& inputTensorValues) const;
 
-    std::vector<std::vector<float>> CreateInferenceImage(Ort::Value *outputTensor);
+    std::vector<std::vector<float>> calculateBoxes(const Ort::Value &outputTensor) const;
 };
 
 
