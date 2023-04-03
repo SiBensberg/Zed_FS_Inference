@@ -35,7 +35,8 @@ private:
     // Inputs
     char* mInputName;
     std::vector<int64_t> mInputDims; // b x h x w x c
-    static inline std::vector<int64_t> mDefaultInputDims = {1, 512, 512, 3};
+    //todo: shape anpassen
+    static inline std::vector<int64_t> mDefaultInputDims = {2, 512, 512, 3};
     // Outputs
     char* mOutputName;
     std::vector<int64_t> mOutputDims; // b x h x w x c
@@ -43,8 +44,7 @@ private:
     // Camera input
     mutable std::vector<int64_t> cameraInputDims; // h x w
 
-    void createTensorFromImage(const cv::Mat& img,
-                               std::vector<uint8_t>& inputTensorValues) const;
+    std::vector<uint8_t> createTensorFromImage(const cv::Mat& img) const;
 
     std::vector<std::vector<float>> calculateBoxes(const Ort::Value &outputTensor) const;
 };

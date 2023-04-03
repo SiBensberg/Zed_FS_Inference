@@ -52,14 +52,15 @@ else()
 endif()
 
 # ONNX
-set(ONNXRUNTIME_ROOT_PATH /mnt/Ubuntu_01/onnxruntime-1.13.1)
+set(ONNXRUNTIME_ROOT_PATH /home/carsten/data/onnxruntime)
+message(${ONNXRUNTIME_ROOT_PATH}/onnxruntime/include/onnxruntime)
 set(ONNXRUNTIME_INCLUDE_DIRS
-        ${ONNXRUNTIME_ROOT_PATH}/onnxruntime/include/onnxruntime
-        ${ONNXRUNTIME_ROOT_PATH}/onnxruntime
-        ${ONNXRUNTIME_ROOT_PATH}/onnxruntime/include/onnxruntime/core/session
+        ${ONNXRUNTIME_ROOT_PATH}/include/onnxruntime
+        ${ONNXRUNTIME_ROOT_PATH}
+        ${ONNXRUNTIME_ROOT_PATH}/include/onnxruntime/core/session
         )
 
-set(ONNXRUNTIME_LIB ${ONNXRUNTIME_ROOT_PATH}/onnxruntime/build/Linux/Release/libonnxruntime.so)
+set(ONNXRUNTIME_LIB ${ONNXRUNTIME_ROOT_PATH}/build/Linux/Release/libonnxruntime.so)
 #/mnt/Ubuntu_01/onnxruntime-1.13.1/onnxruntime/build/Linux/Release/libonnxruntime.so
 
 target_include_directories(ZED_inference PRIVATE ${ONNXRUNTIME_INCLUDE_DIRS})

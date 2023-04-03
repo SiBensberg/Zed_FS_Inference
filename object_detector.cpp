@@ -34,7 +34,7 @@ ObjectDetector::ObjectDetector(const std::string &modelPath) {
     sessionOptions.SetGraphOptimizationLevel(
             GraphOptimizationLevel::ORT_ENABLE_EXTENDED); // other optimization levels ara avaiable
     // Load model
-    Ort::OrtRelease(mSession); // release nullptr initialized session object to make a new one
+    Ort::detail::OrtRelease(mSession); // release nullptr initialized session object to make a new one
     mSession = Ort::Session(mEnv, modelPath.c_str(), sessionOptions); // model gets loaded
 
     // Extract input info:
@@ -98,8 +98,7 @@ std::vector<std::vector<float>> ObjectDetector::inference(const cv::Mat &imageBG
 
     // inputTensorValues is flattened array with chw format.
     // inputTensorValues must be reordered to hwc format
-    std::vector<uint8_t> inputTensorValues(inputTensorSize);
-    createTensorFromImage(imageBGR, inputTensorValues);
+    std::vector<uint8_t> inputTensorValues = createTensorFromImage(imageBGR);
 
     //Assign memory
     std::vector<Ort::Value> inputTensors;
@@ -165,8 +164,9 @@ std::vector<std::vector<float>> ObjectDetector::inference(const cv::Mat &imageBG
 
 
 // Create a tensor from the input image
-void ObjectDetector::createTensorFromImage(
-        const cv::Mat &img, std::vector<uint8_t> &inputTensorValues) const {
+//todo: for 2 images
+std::vector<uint8_t> ObjectDetector::createTensorFromImage(
+        const cv::Mat &img) const {
     auto type = img.type();
     auto input_height = mInputDims.at(1);
     auto input_width = mInputDims.at(2);
@@ -208,10 +208,14 @@ void ObjectDetector::createTensorFromImage(
         cv::cvtColor(preprocessedImage, preprocessedImage, cv::COLOR_RGB2BGR);
     }
 
-    // Assign MAT values to flat vector
-    // this is from here: https://stackoverflow.com/a/26685567
-    inputTensorValues.assign(preprocessedImage.data,
-                             preprocessedImage.data + (preprocessedImage.total() * preprocessedImage.channels()));
+    std::vector<uint8_t> img1 = preprocessedImage.clone();
+    std::vector<uint8_t> img2 = preprocessedImage.clone();
+
+    img1.resize(img1.size() * 2);
+
+    std::move(img2.begin(), img2.end(), img1.end());
+
+    return img1;
 }
 
 std::vector<std::vector<float>> ObjectDetector::calculateBoxes(const Ort::Value &outputTensor) const {
