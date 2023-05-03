@@ -1,7 +1,3 @@
-//
-// Created by simon on 28.01.23.
-//
-
 #include "zed_inference.h"
 
 // General imports
@@ -197,7 +193,9 @@ void ZedInference::visualizeDetections(const cv::Mat& inputImage, const std::vec
         std::string xText = "x: " + coords_to_string[0] + "m";
         std::string yText = "y: " + coords_to_string[1] + "m";
         std::string zText = "z: " + coords_to_string[2] + "m";
-        std::string confText = std::to_string(confidence);
+        std::stringstream conf_stream;
+        conf_stream << std::fixed << std::setprecision(2) << confidence;
+        std::string confText = "P: " + conf_stream.str();
 
         float fontScale = 0.5;
         int thickness = 1;

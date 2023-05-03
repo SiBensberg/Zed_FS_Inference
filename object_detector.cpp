@@ -1,5 +1,6 @@
 //
-// Created by simon on 04.02.23.
+// Some code is lent from: https://github.com/freshtechyy/ONNX-Runtime-GPU-image-classifciation-example at the point of writing licensed with the MIT license.
+// The rest is written by me: https://github.com/SiBensberg
 //
 #include "object_detector.h"
 
