@@ -15,6 +15,7 @@
 #include <chrono>
 #include <vector>
 #include <cmath>
+#include <sstream>
 
 using clock_time = std::chrono::system_clock;
 using sec = std::chrono::duration<double>;

@@ -29,7 +29,7 @@ private: // todo: first member than functions
     sl::Camera zed;
 
     void grabRgbImage();
-    void visualizeDetections(const cv::Mat& inputImage, std::vector<std::vector<float>> bboxes, std::vector<std::vector<float>> distances);
+    void visualizeDetections(const cv::Mat& inputImage, const std::vector<std::vector<float>> &bboxes, const std::vector<std::vector<float>> &distances);
     std::vector<std::vector<float>> inferenceRgbImage(const cv::Mat &rgb_image); // returns boxes. Every vector in the vector is one Box
     std::vector<std::vector<float>> calculateDepth(const std::vector<std::vector<float>>& bboxes, const sl::Mat &point_cloud);
 

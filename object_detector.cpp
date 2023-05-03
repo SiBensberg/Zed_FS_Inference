@@ -158,7 +158,7 @@ std::vector<std::vector<float>> ObjectDetector::inference(const cv::Mat &imageBG
 
     const sec after = clock_time::now() - start;
 
-    std::cout << "Image Precessing and inference taking a overall: " << after.count() << "s" << std::endl;
+    // std::cout << "Image Precessing and inference taking a overall: " << after.count() << "s" << std::endl;
 
     return outputBoxes;
 }
