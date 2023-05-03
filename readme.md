@@ -19,6 +19,8 @@ To run this code one obviously needs `ONNX` and the `ZED SDK` but also `OpenCV`,
 In the following my installation process is briefly described. 
 Others may work too or mine may not, depending on your existing environment.
 
+An example .svo file can be downloaded from here: https://drive.google.com/file/d/1oHrZGJ2r6h4mJaQN11YjG5cwEa9o6X1p/view?usp=sharing
+
 ### Build Opencv:
 
 - Install the following packages if missing:
