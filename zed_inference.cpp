@@ -159,7 +159,7 @@ std::vector<std::vector<float>> ZedInference::inferenceRgbImage(const cv::Mat &r
     return Boxes;
 }
 
-void ZedInference::visualizeDetections(const cv::Mat& inputImage, std::vector<std::vector<float>> bboxes, std::vector<std::vector<float>> distances) {
+void ZedInference::visualizeDetections(const cv::Mat& inputImage, const std::vector<std::vector<float>> &bboxes, const std::vector<std::vector<float>> &distances) {
     int boxIndex = 0;
 
     for(std::vector<float> box: bboxes) {
@@ -181,13 +181,22 @@ void ZedInference::visualizeDetections(const cv::Mat& inputImage, std::vector<st
         cv::rectangle(inputImage, min, max, this->COLORS[class_id - 1], 1.5); // -1 because there is a background id 0
 
         // print coordinates next to boxes:
-        float x = boxDistance[2];
-        float y = boxDistance[3];
-        float z = boxDistance[4];
+        //float x = boxDistance[2];
+        //float y = boxDistance[3];
+        //float z = boxDistance[4];
 
-        std::string xText = "x: " + std::to_string(x) + "m";
-        std::string yText = "y: " + std::to_string(y) + "m";
-        std::string zText = "z: " + std::to_string(z) + "m";
+        std::vector<std::string> coords_to_string; // x,y,z
+
+        // convert distances to objects to string with precision 2
+        for(int n=2; n<=4; ++n) {
+            std::stringstream stream;
+            stream << std::fixed << std::setprecision(2) << boxDistance[n];
+            coords_to_string.push_back(stream.str());
+        }
+
+        std::string xText = "x: " + coords_to_string[0] + "m";
+        std::string yText = "y: " + coords_to_string[1] + "m";
+        std::string zText = "z: " + coords_to_string[2] + "m";
         std::string confText = std::to_string(confidence);
 
         float fontScale = 0.5;
