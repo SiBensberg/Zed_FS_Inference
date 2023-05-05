@@ -58,6 +58,7 @@ Make sure to use the right versions for your preferred version of the ZED SDK.
   - `<CUDNN HOME PATH>` is probably something like: `/usr/lib/x86_64-linux-gnu`
   - `<CUDA PATH>` is probably something like: `/usr/local/cuda-11.7`
   - parallel makes compiling faster. If OOM occurs exclude it.
+- Set the `ONNXRUNTIME_ROOT_PATH` path in `CMakeLists.txt` to your build directory.
 
 For further information you can look here: https://onnxruntime.ai/docs/build/eps.html#cuda
 
