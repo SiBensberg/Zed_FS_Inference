@@ -21,7 +21,7 @@
 
 
 
-ZedInference::ZedInference(): Detector("/home/simon/LionsRacing_workspace/Zed_FS_Inference/model/saved_model.onnx") {
+ZedInference::ZedInference(): Detector("../model/saved_model.onnx") {
     std::cout << "Created ZedInference Class" << std::endl;
     this->running = false;
 
