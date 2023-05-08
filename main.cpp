@@ -9,9 +9,6 @@ int main() {
 
     zed_inf.run();
 
-    //zed_inf.grabRgbImage();
-
-
 
     return 0;
 }

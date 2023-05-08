@@ -1,6 +1,6 @@
 //
 // This code is from stereolabs github https://github.com/stereolabs/zed-opencv
-// and at the point of writing under the MIT License
+// and at the point of writing licensed with the MIT License
 //
 #ifndef ZED_INFERENCE_SLMAT_TO_CVMAT_H
 #define ZED_INFERENCE_SLMAT_TO_CVMAT_H

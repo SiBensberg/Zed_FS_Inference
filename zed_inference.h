@@ -1,5 +1,5 @@
 //
-// Created by simon on 28.01.23.
+// Created by: https://github.com/SiBensberg
 //
 
 #ifndef ZED_INFERENCE_ZED_INFERENCE_H
@@ -13,17 +13,19 @@
 #include <sl/Camera.hpp>
 // Object Detector
 #include "object_detector.h"
+//
+#include <filesystem>
+
 
 class ZedInference {
 public:
     ZedInference();
     int run();
     bool visualize = true;
-private: // todo: first member than functions
+private:
     bool running;
     const ObjectDetector Detector;
-    //ObjectDetector Detector{"/home/carsten/Downloads/saved_model.onnx"};
-    const std::string svo_path = "/home/simon/CLionProjects/test/misc/zed_raw_jetta.svo";
+    const std::string svo_path = "../misc/zed_raw_jetta.svo";
     sl::InitParameters init_params;
     sl::Mat rgb_image;
     sl::Mat depth_image;
@@ -31,7 +33,7 @@ private: // todo: first member than functions
     sl::Camera zed2;
 
     void grabRgbImage();
-    void visualizeDetections(const cv::Mat& inputImage, std::vector<std::vector<float>> bboxes, std::vector<std::vector<float>> distances, const std::string &cam);
+    void visualizeDetections(const cv::Mat& inputImage, const std::vector<std::vector<float>> bboxes, const std::vector<std::vector<float>> distances, const std::string &cam);
     std::vector<std::vector<float>> inferenceRgbImage(const cv::Mat &rgb_image); // returns boxes. Every vector in the vector is one Box
     std::vector<std::vector<float>> calculateDepth(const std::vector<std::vector<float>>& bboxes, const sl::Mat &point_cloud);
 

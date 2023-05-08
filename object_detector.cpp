@@ -1,5 +1,6 @@
 //
-// Created by simon on 04.02.23.
+// Some code is lent from: https://github.com/freshtechyy/ONNX-Runtime-GPU-image-classifciation-example at the point of writing licensed with the MIT license.
+// The rest is written by me: https://github.com/SiBensberg
 //
 #include "object_detector.h"
 
@@ -157,7 +158,7 @@ std::vector<std::vector<float>> ObjectDetector::inference(const cv::Mat &imageBG
 
     const sec after = clock_time::now() - start;
 
-    std::cout << "Image Precessing and inference taking a overall: " << after.count() << "s" << std::endl;
+    // std::cout << "Image Precessing and inference taking a overall: " << after.count() << "s" << std::endl;
 
     return outputBoxes;
 }

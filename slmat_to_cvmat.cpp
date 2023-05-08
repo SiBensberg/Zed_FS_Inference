@@ -1,6 +1,6 @@
 //
 // This code is from stereolabs github https://github.com/stereolabs/zed-opencv
-// and at the point of writing under the MIT License
+// and at the point of writing licensed with the MIT License
 //
 #include "slmat_to_cvmat.h"
 
