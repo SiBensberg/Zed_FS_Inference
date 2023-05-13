@@ -52,8 +52,8 @@ else()
 endif()
 
 # ONNX
-set(ONNXRUNTIME_ROOT_PATH /home/carsten/data/onnxruntime)
-message(${ONNXRUNTIME_ROOT_PATH}/onnxruntime/include/onnxruntime)
+set(ONNXRUNTIME_ROOT_PATH /mnt/Ubuntu_01/onnxruntime-1.13.1/onnxruntime/)
+message(${ONNXRUNTIME_ROOT_PATH}/include/onnxruntime)
 set(ONNXRUNTIME_INCLUDE_DIRS
         ${ONNXRUNTIME_ROOT_PATH}/include/onnxruntime
         ${ONNXRUNTIME_ROOT_PATH}

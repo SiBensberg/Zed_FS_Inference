@@ -24,7 +24,7 @@ using sec = std::chrono::duration<double>;
 class ObjectDetector {
 public:
     explicit ObjectDetector(const std::string& modelPath);
-    std::vector<std::vector<float>> inference(const cv::Mat &imageBGR) const;
+    std::vector<std::vector<std::vector<float>>> inference(const std::vector<cv::Mat> &imageBGR) const;
     bool hwc = true; // whether input to model is HWC or CHW
 private:
     // ORT Environment
@@ -48,7 +48,7 @@ private:
 
     std::vector<uint8_t> createTensorFromImage(const cv::Mat& img) const;
 
-    std::vector<std::vector<float>> calculateBoxes(const Ort::Value &outputTensor) const;
+    std::vector<std::vector<std::vector<float>>> calculateBoxes(const Ort::Value &outputTensor) const;
 };
 
 

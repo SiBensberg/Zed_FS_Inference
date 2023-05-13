@@ -15,6 +15,7 @@
 #include "object_detector.h"
 //
 #include <filesystem>
+#include <stdexcept>
 
 
 class ZedInference {
@@ -29,12 +30,14 @@ private:
     sl::InitParameters init_params;
     sl::Mat rgb_image;
     sl::Mat depth_image;
-    sl::Camera zed1;
-    sl::Camera zed2;
+
+    int num_cameras;
+    std::vector<sl::Camera> zeds; // vector with camera instances.
+    sl::Resolution image_size;
 
     void grabRgbImage();
-    void visualizeDetections(const cv::Mat& inputImage, const std::vector<std::vector<float>> bboxes, const std::vector<std::vector<float>> distances, const std::string &cam);
-    std::vector<std::vector<float>> inferenceRgbImage(const cv::Mat &rgb_image); // returns boxes. Every vector in the vector is one Box
+    void visualizeDetections(const cv::Mat& inputImage, const std::vector<std::vector<float>> &bboxes, const std::vector<std::vector<float>> &distances, const std::string &cam);
+    std::vector<std::vector<std::vector<float>>> inferenceRgbImage(std::vector<cv::Mat> &rgb_cv_images); // returns boxes. Every vector in the vector is one Box
     std::vector<std::vector<float>> calculateDepth(const std::vector<std::vector<float>>& bboxes, const sl::Mat &point_cloud);
 
     // Colors for visualisation

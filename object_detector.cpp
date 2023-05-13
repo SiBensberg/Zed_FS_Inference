@@ -35,7 +35,7 @@ ObjectDetector::ObjectDetector(const std::string &modelPath) {
     sessionOptions.SetGraphOptimizationLevel(
             GraphOptimizationLevel::ORT_ENABLE_EXTENDED); // other optimization levels ara avaiable
     // Load model
-    Ort::detail::OrtRelease(mSession); // release nullptr initialized session object to make a new one
+    Ort::OrtRelease(mSession); // release nullptr initialized session object to make a new one
     mSession = Ort::Session(mEnv, modelPath.c_str(), sessionOptions); // model gets loaded
 
     // Extract input info:
@@ -87,9 +87,15 @@ ObjectDetector::ObjectDetector(const std::string &modelPath) {
 
 }
 
-std::vector<std::vector<float>> ObjectDetector::inference(const cv::Mat &imageBGR) const {
+std::vector<std::vector<std::vector<float>>> ObjectDetector::inference(const std::vector<cv::Mat> &imageBGR) const {
     // for time measuring
     const auto start = clock_time::now();
+    auto num_images = imageBGR.size();
+
+    if (num_images > mDefaultInputDims[0]) {
+        throw std::domain_error("More Camera images then the network can inference. "
+                                "Adjust network input dimensions or lower number of cameras.");
+    }
 
     // Calculate flat tensor input size:
     long inputTensorSize = 1;
@@ -99,7 +105,15 @@ std::vector<std::vector<float>> ObjectDetector::inference(const cv::Mat &imageBG
 
     // inputTensorValues is flattened array with chw format.
     // inputTensorValues must be reordered to hwc format
-    std::vector<uint8_t> inputTensorValues = createTensorFromImage(imageBGR);
+    // vector of input tensor values:
+    std::vector<std::vector<uint8_t>> input_tensor_values_vector;
+    //std::vector<std::vector<uint8_t>> inputTensorValues;
+    std::vector<uint8_t> inputTensorValues = createTensorFromImage(imageBGR[0]);
+    for (int i=1; i<num_images; ++i) {
+        auto x = createTensorFromImage(imageBGR[0]);
+        inputTensorValues.insert(inputTensorValues.end(), x.begin() ,x.end());
+        //input_tensor_values_vector[i] = createTensorFromImage(imageBGR[i]);
+    }
 
     //Assign memory
     std::vector<Ort::Value> inputTensors;
@@ -153,7 +167,6 @@ std::vector<std::vector<float>> ObjectDetector::inference(const cv::Mat &imageBG
     const sec inference_time = clock_time::now() - start;
     // std::cout<< "The inference takes " << inference_time.count() << "s" << std::endl;
 
-    // debug: try to show image
     auto outputBoxes = this->calculateBoxes(outputTensors.back());
 
     const sec after = clock_time::now() - start;
@@ -165,7 +178,6 @@ std::vector<std::vector<float>> ObjectDetector::inference(const cv::Mat &imageBG
 
 
 // Create a tensor from the input image
-//todo: for 2 images
 std::vector<uint8_t> ObjectDetector::createTensorFromImage(
         const cv::Mat &img) const {
     auto type = img.type();
@@ -180,6 +192,11 @@ std::vector<uint8_t> ObjectDetector::createTensorFromImage(
     // also todo: shift to gpu memory maybe helpful.
     cv::Mat scaledImage(nativeRows, nativeCols, CV_8UC3);
     cv::Mat preprocessedImage(input_height, input_width, CV_8UC3);
+
+    // debug:
+    auto channels = img.channels();
+    //cv::imshow("cam", img);
+    //cv::waitKey();
 
     std::vector<cv::Mat> rgbchannel;
     cv::split(img, rgbchannel);
@@ -219,7 +236,7 @@ std::vector<uint8_t> ObjectDetector::createTensorFromImage(
     return img1;
 }
 
-std::vector<std::vector<float>> ObjectDetector::calculateBoxes(const Ort::Value &outputTensor) const {
+std::vector<std::vector<std::vector<float>>> ObjectDetector::calculateBoxes(const Ort::Value &outputTensor) const {
     // Calculate Factors for later upscaling of boxes with very sexy casts
     auto width_factor = (float) cameraInputDims[1] / (float) mInputDims.at(2);
     auto height_factor = (float) cameraInputDims[0] / (float) mInputDims.at(1);
@@ -228,23 +245,27 @@ std::vector<std::vector<float>> ObjectDetector::calculateBoxes(const Ort::Value 
     // Get data from tensor:
     const auto data = outputTensor.GetTensorData<float>();
 
-    std::vector<std::vector<float>> outputBoxes;
+    std::vector<std::vector<std::vector<float>>> outputBoxes; //one vector for each box, for each image
 
-    // for every of the 100 boxes:
-    for (int row = 0; row < shape[1]; ++row) {
-        // init indexes for easy access of flattened array.
-        const auto confidence = *(data + (row * 7 + 5)); // confidence value is on the 5th place of the row
-        const auto class_id = *(data + (row * 7 + 6));
+    // for every image
+    for (int img = 0; img < shape[0]; ++img) {
+        // for every of the 100 boxes:
+        for (int row = 0; row < shape[1]; ++row) {
+            // init indexes for easy access of flattened array.
+            const auto confidence = *(data + (row * 7 + 5)); // confidence value is on the 5th place of the row
+            const auto class_id = *(data + (row * 7 + 6));
 
-        if (confidence >= 0.09) {
-            std::vector<float> box_data{class_id, confidence,
-                                        *(data + (row * 7 + 1)) * height_factor,
-                                        *(data + (row * 7 + 2)) * width_factor,
-                                        *(data + (row * 7 + 3)) * height_factor,
-                                        *(data + (row * 7 + 4)) * width_factor};
-            outputBoxes.push_back(box_data);
+            if (confidence >= 0.09) {
+                std::vector<float> box_data{class_id, confidence,
+                                            *(data + (row * 7 + 1)) * height_factor,
+                                            *(data + (row * 7 + 2)) * width_factor,
+                                            *(data + (row * 7 + 3)) * height_factor,
+                                            *(data + (row * 7 + 4)) * width_factor};
+                outputBoxes[img].push_back(box_data);
+            }
         }
     }
+
 
     return outputBoxes;
 }
