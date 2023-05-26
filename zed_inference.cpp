@@ -31,24 +31,25 @@ ZedInference::ZedInference(): Detector("../model/saved_model_b2.onnx") {
 }
 
 void ZedInference::grabRgbImage() {
-    std::vector<sl::Mat> images_zed;
-    std::vector<cv::Mat> images_cv_zed;
-    std::vector<sl::Mat> pointclouds;
+    std::vector<sl::Mat> images_zed(num_cameras);
+    std::vector<cv::Mat> images_cv_zed(num_cameras);
+    std::vector<sl::Mat> pointclouds(num_cameras);
+    std::vector<sl::Timestamp> timestamps(num_cameras);
 
-    for (int i=0; i<num_cameras; ++i) {
+    for (int z = 0; z < num_cameras; z++) {
         sl::Mat image_zed(image_size.width, image_size.height, sl::MAT_TYPE::U8_C4);
         sl::Mat point_cloud;
 
-        if (zeds[i].grab() == sl::ERROR_CODE::SUCCESS) {
-            zeds[i].retrieveImage(image_zed, sl::VIEW::LEFT);
-            images_zed.push_back(image_zed);
-            zeds[i].retrieveMeasure(point_cloud, sl::MEASURE::XYZRGBA);
-            pointclouds.push_back(point_cloud);
-        }
-
+        //images_zed.push_back(image_zed);
+        //pointclouds.push_back(point_cloud);
         // I hope this works
-        //cv::Mat image_ocv = slMat2cvMat(images_zed[i]);
-        images_cv_zed.push_back(slMat2cvMat(image_zed));
+        //images_cv_zed.push_back(slMat2cvMat(images_zed.back()));
+
+        if (zeds[z].isOpened()) {
+            // camera acquisition thread
+            thread_pool[z] = std::thread(zed_acquisition, std::ref(zeds[z]), std::ref(images_zed[z]),
+                                         std::ref(pointclouds[z]), std::ref(images_cv_zed[z]), std::ref(timestamps[z]), std::ref(this->running));
+        }
     }
 
     //sl::Mat image_zed(image_size.width, image_size.height, sl::MAT_TYPE::U8_C4);
@@ -56,19 +57,23 @@ void ZedInference::grabRgbImage() {
     // //sl::Mat image_zed(zed1.getResolution(), MAT_TYPE::U8_C4);
     //cv::Mat image_ocv = slMat2cvMat(image_zed);
 
+    // Sleep is necessary. Else the first images will be empty.
+    sl::sleep_ms(1000);
 
-    std::vector<std::vector<std::vector<float>>> bboxes; // one vector for each bbox, one for each image.
-    std::vector<std::vector<std::vector<float>>> distances;
     // inference image
-    bboxes = ZedInference::inferenceRgbImage(images_cv_zed);
-    // Calculate Depth:
-    for (int i=0; i<num_cameras; ++i) {
-        distances.push_back(ZedInference::calculateDepth(bboxes[i], pointclouds[i]));
-        std::string camera_name = "ZED_%d" + std::to_string(i);
-        ZedInference::visualizeDetections(images_cv_zed[i], bboxes[i], distances[i], camera_name);
+    while (running) {
+        // todo: Maybe allocate space outside loop to avoid reallocating it every split second?
+        std::vector<std::vector<std::vector<float>>> bboxes; // first vector is data for each box. Next is for each image all boxes.
+        std::vector<std::vector<std::vector<float>>> distances;
+
+        bboxes = ZedInference::inferenceRgbImage(images_cv_zed);
+        // Calculate Depth:
+        for (int i = 0; i < num_cameras; ++i) {
+            distances.push_back(ZedInference::calculateDepth(bboxes[i], pointclouds[i]));
+            std::string camera_name = "ZED_%d" + std::to_string(i);
+            ZedInference::visualizeDetections(images_cv_zed[i], bboxes[i], distances[i], camera_name);
+        }
     }
-    //distances = ZedInference::calculateDepth(bboxes, pointclouds);
-    //ZedInference::visualizeDetections(image_ocv, bboxes, distances, "ZED A");
 
     // publish distances here
 }
@@ -88,14 +93,13 @@ int ZedInference::run() {
     // How many cameras are detected?
     std::vector<sl::DeviceProperties> devList = sl::Camera::getDeviceList();
     num_cameras = devList.size(); // todo: throw execption if not 2?
-    std::vector<std::thread> thread_pool(num_cameras); // compute threads
-
-
+    // init threads
+    this->zeds = std::vector<sl::Camera>(num_cameras);
     for (int i = 0; i < num_cameras; ++i) {
         std::cout << "ID : " << devList[i].id << " ,model : " << devList[i].camera_model << " , S/N : " << devList[i].serial_number << " , state : "<<devList[i].camera_state<<std::endl;
     }
+    this->thread_pool = std::vector<std::thread>(num_cameras); // compute threads
 
-    this->zeds = std::vector<sl::Camera>(num_cameras);
 
     //bool open = true;
     // Open the camera
@@ -120,8 +124,9 @@ int ZedInference::run() {
         std::cout << "\nOpening SVO..." << std::endl;
 
         // Init 2 fake cameras
-        this->num_cameras = 1;
+        this->num_cameras = 2;
         this->zeds = std::vector<sl::Camera>(num_cameras);
+        this->thread_pool = std::vector<std::thread>(num_cameras); // compute threads
 
         sl::String input_svo_path(this->svo_path.c_str());
         init_params.input.setFromSVOFile(input_svo_path);
@@ -157,9 +162,8 @@ int ZedInference::run() {
     if (running && camera_open){
         std::cout << "\nRun camera: " << std::endl;
     }
-    while (running && camera_open){
-        ZedInference::grabRgbImage();
-    }
+    ZedInference::grabRgbImage();
+
 
 }
 
@@ -199,6 +203,32 @@ std::vector<std::vector<std::vector<float>>> ZedInference::inferenceRgbImage(std
 
     return Boxes;
 }
+
+void ZedInference::zed_acquisition(sl::Camera &zed, sl::Mat &img, sl::Mat &pcl, cv::Mat &cv_img, sl::Timestamp &ts, bool &running) {
+    //sl::Mat zed_image;
+    //const int w_low_res = img.cols;
+    //const int h_low_res = img.rows;
+    //sl::Resolution low_res(w_low_res, h_low_res);
+    std::cout << "Camera thread opened" << std::endl;
+    while (running) {
+        // grab current images and compute depth
+        if (zed.grab() == sl::ERROR_CODE::SUCCESS) {
+            // Rettieve image
+            zed.retrieveImage(img, sl::VIEW::LEFT, sl::MEM::CPU);
+            // to cv Mat
+            cv_img = slMat2cvMat(img);
+            // retrieve Pointcloud
+            zed.retrieveMeasure(pcl, sl::MEASURE::XYZRGBA);
+            auto ts = zed.getTimestamp(sl::TIME_REFERENCE::IMAGE);
+        }
+        else {
+            std::cout << "Could not grab image" << std::endl;
+        }
+        sl::sleep_ms(2);
+    }
+    zed.close();
+}
+
 
 //als return type cv::Mat, return inputImage
 void ZedInference::visualizeDetections(const cv::Mat& inputImage, const std::vector<std::vector<float>> &bboxes, const std::vector<std::vector<float>> &distances, const std::string &cam) {

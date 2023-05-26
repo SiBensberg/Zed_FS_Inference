@@ -63,7 +63,11 @@ set(ONNXRUNTIME_INCLUDE_DIRS
 set(ONNXRUNTIME_LIB ${ONNXRUNTIME_ROOT_PATH}/build/Linux/Release/libonnxruntime.so)
 #/mnt/Ubuntu_01/onnxruntime-1.13.1/onnxruntime/build/Linux/Release/libonnxruntime.so
 
+IF(NOT MSVC)
+    SET(SPECIAL_OS_LIBS "pthread")
+ENDIF()
+
 target_include_directories(ZED_inference PRIVATE ${ONNXRUNTIME_INCLUDE_DIRS})
-target_link_libraries(ZED_inference PRIVATE ${ONNXRUNTIME_LIB} ${ZED_LIBRARIES} stdc++fs -lstdc++fs ${ZED_LIBS} ${OpenCV_LIBRARIES})
+target_link_libraries(ZED_inference PRIVATE ${ONNXRUNTIME_LIB} ${ZED_LIBRARIES} ${SPECIAL_OS_LIBS} stdc++fs -lstdc++fs ${ZED_LIBS} ${OpenCV_LIBRARIES})
 
 #TARGET_LINK_LIBRARIES(${PROJECT_NAME} ${ZED_LIBS} ${OpenCV_LIBRARIES})

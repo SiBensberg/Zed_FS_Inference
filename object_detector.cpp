@@ -102,16 +102,18 @@ std::vector<std::vector<std::vector<float>>> ObjectDetector::inference(const std
     for (const auto &e: mInputDims) {
         inputTensorSize *= e;
     }
+    // todo: assertion for the following?
+    long input_image_size = inputTensorSize / num_images;
 
     // inputTensorValues is flattened array with chw format.
     // inputTensorValues must be reordered to hwc format
     // vector of input tensor values:
-    std::vector<std::vector<uint8_t>> input_tensor_values_vector;
-    //std::vector<std::vector<uint8_t>> inputTensorValues;
-    std::vector<uint8_t> inputTensorValues = createTensorFromImage(imageBGR[0]);
-    for (int i=1; i<num_images; ++i) {
-        auto x = createTensorFromImage(imageBGR[0]);
-        inputTensorValues.insert(inputTensorValues.end(), x.begin() ,x.end());
+    std::vector<uint8_t> inputTensorValues;
+    for (int i=0; i<num_images; ++i) {
+        std::vector<uint8_t> input_image_values(input_image_size);
+        createTensorFromImage(imageBGR[i], input_image_values);
+        inputTensorValues.insert(inputTensorValues.end(), input_image_values.begin(), input_image_values.end());
+
         //input_tensor_values_vector[i] = createTensorFromImage(imageBGR[i]);
     }
 
@@ -171,15 +173,15 @@ std::vector<std::vector<std::vector<float>>> ObjectDetector::inference(const std
 
     const sec after = clock_time::now() - start;
 
-    // std::cout << "Image Precessing and inference taking a overall: " << after.count() << "s" << std::endl;
+    // std::cout << "Image Precessing and inference taking an overall: " << after.count() << "s" << std::endl;
 
     return outputBoxes;
 }
 
 
 // Create a tensor from the input image
-std::vector<uint8_t> ObjectDetector::createTensorFromImage(
-        const cv::Mat &img) const {
+void ObjectDetector::createTensorFromImage(
+        const cv::Mat &img, std::vector<uint8_t> &inputTensorValues) const {
     auto type = img.type();
     auto input_height = mInputDims.at(1);
     auto input_width = mInputDims.at(2);
@@ -192,11 +194,6 @@ std::vector<uint8_t> ObjectDetector::createTensorFromImage(
     // also todo: shift to gpu memory maybe helpful.
     cv::Mat scaledImage(nativeRows, nativeCols, CV_8UC3);
     cv::Mat preprocessedImage(input_height, input_width, CV_8UC3);
-
-    // debug:
-    auto channels = img.channels();
-    //cv::imshow("cam", img);
-    //cv::waitKey();
 
     std::vector<cv::Mat> rgbchannel;
     cv::split(img, rgbchannel);
@@ -226,14 +223,10 @@ std::vector<uint8_t> ObjectDetector::createTensorFromImage(
         cv::cvtColor(preprocessedImage, preprocessedImage, cv::COLOR_RGB2BGR);
     }
 
-    std::vector<uint8_t> img1 = preprocessedImage.clone();
-    std::vector<uint8_t> img2 = preprocessedImage.clone();
-
-    img1.resize(img1.size() * 2);
-
-    std::move(img2.begin(), img2.end(), img1.end());
-
-    return img1;
+    // Assign MAT values to flat vector
+    // this is from here: https://stackoverflow.com/a/26685567
+    inputTensorValues.assign(preprocessedImage.data,
+                             preprocessedImage.data + (preprocessedImage.total() * preprocessedImage.channels()));
 }
 
 std::vector<std::vector<std::vector<float>>> ObjectDetector::calculateBoxes(const Ort::Value &outputTensor) const {
@@ -245,7 +238,7 @@ std::vector<std::vector<std::vector<float>>> ObjectDetector::calculateBoxes(cons
     // Get data from tensor:
     const auto data = outputTensor.GetTensorData<float>();
 
-    std::vector<std::vector<std::vector<float>>> outputBoxes; //one vector for each box, for each image
+    std::vector<std::vector<std::vector<float>>> outputBoxes(shape[0]); //one vector for each box, for each image
 
     // for every image
     for (int img = 0; img < shape[0]; ++img) {
@@ -256,7 +249,7 @@ std::vector<std::vector<std::vector<float>>> ObjectDetector::calculateBoxes(cons
             const auto class_id = *(data + (row * 7 + 6));
 
             if (confidence >= 0.09) {
-                std::vector<float> box_data{class_id, confidence,
+                std::vector<float> box_data{class_id, confidence, //test1, test2, test3, test4};
                                             *(data + (row * 7 + 1)) * height_factor,
                                             *(data + (row * 7 + 2)) * width_factor,
                                             *(data + (row * 7 + 3)) * height_factor,

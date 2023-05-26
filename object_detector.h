@@ -46,8 +46,8 @@ private:
     // Camera input
     mutable std::vector<int64_t> cameraInputDims; // h x w
 
-    std::vector<uint8_t> createTensorFromImage(const cv::Mat& img) const;
-
+    void createTensorFromImage(const cv::Mat& img,
+                               std::vector<uint8_t>& inputTensorValues) const;
     std::vector<std::vector<std::vector<float>>> calculateBoxes(const Ort::Value &outputTensor) const;
 };
 

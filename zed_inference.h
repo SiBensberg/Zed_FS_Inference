@@ -32,6 +32,7 @@ private:
     sl::Mat depth_image;
 
     int num_cameras;
+    std::vector<std::thread> thread_pool; // compute threads
     std::vector<sl::Camera> zeds; // vector with camera instances.
     sl::Resolution image_size;
 
@@ -46,6 +47,8 @@ private:
     const cv::Scalar ORANGE = {0, 110, 250};
     const cv::Scalar BIGORANGE = {60, 30, 190};
     const std::vector<cv::Scalar> COLORS = {BLUE, YELLOW, ORANGE, BIGORANGE};
+
+    static void zed_acquisition(sl::Camera &zed, sl::Mat &img, sl::Mat &pcl, cv::Mat &cv_img, sl::Timestamp &ts, bool &running);
 };
 
 
