@@ -13,6 +13,11 @@ const std::vector<cv::Scalar> COLORS = {BLUE, YELLOW, ORANGE, BIGORANGE};
 
 
 ObjectDetector::ObjectDetector(const std::string &modelPath) {
+    /**
+     * Init an object detector class taht loads a ONNX model from model path and uses it to infer bounding boxes
+     *
+     * @param modelPath path to ONNX model.
+     */
     std::cout << "Initiating ObjectDetector: " << std::endl;
     // Create Environment:
     std::string instance_Name = "Object Detector";
@@ -87,10 +92,18 @@ ObjectDetector::ObjectDetector(const std::string &modelPath) {
 
 }
 
-std::vector<std::vector<std::vector<float>>> ObjectDetector::inference(const std::vector<cv::Mat> &imageBGR) const {
+std::vector<std::vector<std::vector<float>>> ObjectDetector::inference(const std::vector<cv::Mat> &imagesBGR) const {
+    /**
+     * Inferences bounding boxes on the given images.
+     * Input is vector of n images which will be batch inferred.
+     * If batch size doesn't fit the input dimensions an error will be thrown.
+     *
+     * @param imagesBGR vector with all images to infer. cv:Mat
+     * @return returns vector with detected bounding boxes above confidence 0.09
+     */
     // for time measuring
     const auto start = clock_time::now();
-    auto num_images = imageBGR.size();
+    auto num_images = imagesBGR.size();
 
     if (num_images > mDefaultInputDims[0]) {
         throw std::domain_error("More Camera images then the network can inference. "
@@ -111,10 +124,10 @@ std::vector<std::vector<std::vector<float>>> ObjectDetector::inference(const std
     std::vector<uint8_t> inputTensorValues;
     for (int i=0; i<num_images; ++i) {
         std::vector<uint8_t> input_image_values(input_image_size);
-        createTensorFromImage(imageBGR[i], input_image_values);
+        createTensorFromImage(imagesBGR[i], input_image_values);
         inputTensorValues.insert(inputTensorValues.end(), input_image_values.begin(), input_image_values.end());
 
-        //input_tensor_values_vector[i] = createTensorFromImage(imageBGR[i]);
+        //input_tensor_values_vector[i] = createTensorFromImage(imagesBGR[i]);
     }
 
     //Assign memory
@@ -182,6 +195,11 @@ std::vector<std::vector<std::vector<float>>> ObjectDetector::inference(const std
 // Create a tensor from the input image
 void ObjectDetector::createTensorFromImage(
         const cv::Mat &img, std::vector<uint8_t> &inputTensorValues) const {
+    /**
+     * Creates a ONNX tensor for the session. Takes the cv:Mat as input and writes the to inputTensorValues.
+     * @param img Reference of cv:Mat image to be inferred.
+     * @param inputTensorValues Flat uint8 vector with all the values from the input image.
+     */
     auto type = img.type();
     auto input_height = mInputDims.at(1);
     auto input_width = mInputDims.at(2);
@@ -230,6 +248,14 @@ void ObjectDetector::createTensorFromImage(
 }
 
 std::vector<std::vector<std::vector<float>>> ObjectDetector::calculateBoxes(const Ort::Value &outputTensor) const {
+    /**
+     * Extract the output boxes data from the flat output vector.
+     * Also scales them back to initial image size.
+     * Filters out every box with confidence score <= 0.09.
+     *
+     * @param outputTensor flat output tensor from ONNX session
+     * @return Scaled output boxes in vector. First vector is for the image second for each box
+     */
     // Calculate Factors for later upscaling of boxes with very sexy casts
     auto width_factor = (float) cameraInputDims[1] / (float) mInputDims.at(2);
     auto height_factor = (float) cameraInputDims[0] / (float) mInputDims.at(1);

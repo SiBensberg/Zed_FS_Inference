@@ -22,7 +22,8 @@ class ZedInference {
 public:
     ZedInference();
     int run();
-    bool visualize = true;
+    bool visualize = true; // If this is true the code is severly slowed down.
+    int fake_cameras = 2; // Number of cameras to simulate if no real cameras found.
 private:
     bool running;
     const ObjectDetector Detector;
