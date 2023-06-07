@@ -271,15 +271,15 @@ std::vector<std::vector<std::vector<float>>> ObjectDetector::calculateBoxes(cons
         // for every of the 100 boxes:
         for (int row = 0; row < shape[1]; ++row) {
             // init indexes for easy access of flattened array.
-            const auto confidence = *(data + (row * 7 + 5)); // confidence value is on the 5th place of the row
-            const auto class_id = *(data + (row * 7 + 6));
+            const auto confidence = *(data + (img * shape[1] * 7) + (row * 7 + 5)); // confidence value is on the 5th place of the row
+            const auto class_id = *(data + (img * shape[1] * 7) + (row * 7 + 6));
 
             if (confidence >= 0.09) {
                 std::vector<float> box_data{class_id, confidence, //test1, test2, test3, test4};
-                                            *(data + (row * 7 + 1)) * height_factor,
-                                            *(data + (row * 7 + 2)) * width_factor,
-                                            *(data + (row * 7 + 3)) * height_factor,
-                                            *(data + (row * 7 + 4)) * width_factor};
+                                            *(data + (img * shape[1] * 7) + (row * 7 + 1)) * height_factor,
+                                            *(data + (img * shape[1] * 7) + (row * 7 + 2)) * width_factor,
+                                            *(data + (img * shape[1] * 7) + (row * 7 + 3)) * height_factor,
+                                            *(data + (img * shape[1] * 7) + (row * 7 + 4)) * width_factor};
                 outputBoxes[img].push_back(box_data);
             }
         }
